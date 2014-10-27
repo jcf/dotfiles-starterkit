@@ -1,0 +1,41 @@
+---
+# Make sure there's a ~/.bin directory in our home directory.
+#
+# This is a good place to add to $path in our ZSH configuration, and then any
+# excutables in here will be available when we need them.
+- name: Create ~/.bin
+  file: dest=~/.bin state=directory
+
+# Chances are you have some configuration files for different languages, maybe
+# an `.npmrc` or `.gemrc` file if you're using NPM or RubyGems.
+#
+# This will find every file in the roles/dotfiles/files directory and make sure
+# each one is linked into your home directory.
+- name: Link dotfiles
+  file: src={{ item }} dest=~/.{{ item | basename }} state=link
+  with_fileglob:
+    - ./*
+
+# This installs homebrew packages via an Ansible variable, the value of which
+# can be found in `group_vars/all.yml`.
+#
+# Variables are really powerful, and can be used to move configuration out of
+# task definitions making our plays more portable.
+- name: Install Homebrew packages
+  homebrew: name={{ item }} state=latest
+  with_items: dotfiles.packages
+
+# This git module can do quite a lot! The most basic thing I use if for is
+# pulling down a remote repo. Bear in mind, this is a destructive operation by
+# default, so don't use this to update a repo you're changing day-to-day.
+#
+# There's an option to make this non-destructive; by default Ansible will blow
+# up if there are changes in the repository.
+- name: Clone rbenv
+  git: >
+    repo=git://github.com/sstephenson/rbenv.git
+    dest=~/.rbenv
+  # This tag can be used to filter the plays you want to run via
+  # `ansible-playbook`. I do this in `bin/update` where anything that isn't an
+  # update-type task is ignored.
+  tags: update
